@@ -45,9 +45,10 @@ def _ingest_content(filename: str, content: bytes, source: str, clear_before: bo
         if clear_before:
             _clear_dataset_records()
         raw_df, _, _ = parse_uploaded_file(filename, content, settings.max_csv_bytes)
+        detected_format = filename.rsplit(".", 1)[-1].lower() if "." in filename else "txt"
         snapshot = DatasetSnapshot(
             filename=filename,
-            detected_format=filename.rsplit(".", 1)[-1].lower() if "." in filename else "txt",
+            detected_format=detected_format,
             schema_name=parsed["schema"]["schema"],
             mapping_json=json.dumps(parsed["schema"]["mapping"]),
             metadata_json=json.dumps(parsed["metadata"]),
@@ -65,7 +66,7 @@ def _ingest_content(filename: str, content: bytes, source: str, clear_before: bo
             "preview": parsed["preview"],
             "metadata": parsed["metadata"],
             "schema": parsed["schema"],
-            "detected_format": snapshot.detected_format,
+            "detected_format": detected_format,
             "selected_file": filename,
             "analysis": None,
         }
