@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     cors_origin_regex: str = r"https://.*\.vercel\.app"
     max_csv_bytes: int = 64 * 1024 * 1024
     app_name: str = "AEGIS Reliability Platform"
+    demo_dataset_base_url: str = "https://raw.githubusercontent.com/remijerphin-arch/SIH-2026-AI-Driven-Anomaly-Detection-in-Component-Burn-In-Screening-/main/Dataset"
 
     @property
     def project_root(self) -> Path:

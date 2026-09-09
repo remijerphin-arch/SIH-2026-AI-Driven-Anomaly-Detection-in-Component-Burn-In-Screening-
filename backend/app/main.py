@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
 import json
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -143,12 +145,24 @@ async def upload(file: UploadFile = File(...)):
 @app.post("/api/demo")
 def load_demo(dataset: str = Query(default="FD001", pattern=r"^FD00[1-4]$")):
     dataset_dir = settings.project_root / "Dataset"
-    candidates = [dataset_dir / f"train_{dataset}.txt", dataset_dir / f"train_{dataset}"]
-    dataset = next((candidate for candidate in candidates if candidate.exists()), None)
-    if dataset is None:
-        raise HTTPException(404, "Demo dataset is not available in the project Dataset folder.")
+    dataset_path = next(
+        (candidate for candidate in (dataset_dir / f"train_{dataset}.txt", dataset_dir / f"train_{dataset}") if candidate.exists()),
+        None,
+    )
+    filename = f"train_{dataset}.txt"
+    if dataset_path is not None:
+        content = dataset_path.read_bytes()
+    else:
+        url = f"{settings.demo_dataset_base_url.rstrip('/')}/{filename}"
+        try:
+            with urlopen(url, timeout=30) as response:
+                content = response.read(settings.max_csv_bytes + 1)
+        except (HTTPError, URLError, TimeoutError) as exc:
+            raise HTTPException(502, f"Could not download demo dataset from the configured sample source: {exc}") from exc
+        if len(content) > settings.max_csv_bytes:
+            raise HTTPException(502, "The remote demo dataset exceeds the configured upload size limit.")
     _clear_dataset_records()
-    result = _ingest_content(dataset.name, dataset.read_bytes(), "demo")
+    result = _ingest_content(filename, content, "demo")
     if result["errors"]:
         return result
     db = SessionLocal()
