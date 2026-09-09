@@ -98,7 +98,7 @@ export function ComponentsPage() {
         </CardBody>
       </Card>
       {data.items.length === 0 ? (
-        <EmptyState title="No components match these filters." hint="Run Live Demo from the landing page or generate data under Data Upload." />
+        <EmptyState title="No components match these filters." hint="Upload an engineering dataset or adjust the active filters." />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-line">
           <table className="w-full text-sm min-w-[960px]">

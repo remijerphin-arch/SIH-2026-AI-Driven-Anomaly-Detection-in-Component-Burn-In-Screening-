@@ -72,7 +72,7 @@ export function AnomalyPage() {
 
   if (err) return <ErrorNote message={err} />
   if (!ready) return <Loading />
-  if (!items.length) return <p className="text-muted text-sm">No components. Run the live demo first.</p>
+  if (!items.length) return <p className="text-muted text-sm">No analyzed components. Upload a dataset to begin screening.</p>
 
   const L = detail?.layers
 

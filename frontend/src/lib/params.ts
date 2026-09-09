@@ -3,6 +3,8 @@ export const PARAMETERS = [
   { key: 'voltage', label: 'Voltage', unit: 'V' },
   { key: 'current', label: 'Current', unit: 'mA' },
   { key: 'temperature', label: 'Temperature', unit: '°C' },
+  { key: 'pressure', label: 'Pressure', unit: 'kPa' },
+  { key: 'vibration', label: 'Vibration', unit: 'g' },
   { key: 'propagation_delay', label: 'Propagation Delay', unit: 'ns' },
   { key: 'resistance', label: 'Resistance', unit: 'Ω' },
   { key: 'capacitance', label: 'Capacitance', unit: 'pF' },

@@ -16,8 +16,9 @@ import {
   Timer,
   Upload,
   X,
+  Sun,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const links = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -35,8 +36,20 @@ export function AppLayout() {
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [q, setQ] = useState('')
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('aegis-theme') as 'dark' | 'light') ?? 'dark')
   const nav = useNavigate()
   const loc = useLocation()
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('aegis-theme', next)
+    document.documentElement.dataset.theme = next
+  }
 
   return (
     <div className="app-shell">
@@ -94,6 +107,10 @@ export function AppLayout() {
             </button>
             <Gauge size={14} className="status-icon" />
             <div className="eyebrow hidden-sm">Mission console</div>
+            <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+              <Sun size={14} />
+              <span className="hidden-sm">{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
+            </button>
           </div>
 
           <form

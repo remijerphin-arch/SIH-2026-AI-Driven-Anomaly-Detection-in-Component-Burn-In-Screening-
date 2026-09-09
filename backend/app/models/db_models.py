@@ -71,6 +71,8 @@ class Measurement(Base):
     temperature: Mapped[float] = mapped_column(Float)
     voltage: Mapped[float] = mapped_column(Float)
     current: Mapped[float] = mapped_column(Float)
+    pressure: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vibration: Mapped[float | None] = mapped_column(Float, nullable=True)
     leakage_current: Mapped[float] = mapped_column(Float)
     propagation_delay: Mapped[float] = mapped_column(Float)
     resistance: Mapped[float] = mapped_column(Float)
@@ -154,3 +156,17 @@ class Setting(Base):
 
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
+
+
+class DatasetSnapshot(Base):
+    __tablename__ = "dataset_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    filename: Mapped[str] = mapped_column(String(256))
+    detected_format: Mapped[str] = mapped_column(String(32))
+    schema_name: Mapped[str] = mapped_column(String(64))
+    mapping_json: Mapped[str] = mapped_column(Text, default="{}")
+    metadata_json: Mapped[str] = mapped_column(Text, default="{}")
+    rows_json: Mapped[str] = mapped_column(Text, default="[]")
+    analysis_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

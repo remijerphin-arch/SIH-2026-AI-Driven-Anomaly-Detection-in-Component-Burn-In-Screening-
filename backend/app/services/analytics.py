@@ -22,8 +22,11 @@ def dashboard_payload(db: Session) -> dict:
     predicted_fail = sum(
         1 for c in comps if c.predicted_168h is not None and c.predicted_168h >= 0.9 * c.spec_limit
     )
+    label = "NO DATASET LOADED"
+    if comps:
+        label = "DEMO DATASET — NASA C-MAPSS" if any(c.data_source == "demo" for c in comps) else "UPLOADED DATA"
     return {
-        "data_label": "NO DATASET LOADED" if not comps else "UPLOADED DATA",
+        "data_label": label,
         "totals": {
             "tested": n,
             "safe": counts["SAFE"],

@@ -10,6 +10,8 @@ ParameterName = Literal[
     "voltage",
     "current",
     "temperature",
+    "pressure",
+    "vibration",
     "propagation_delay",
     "resistance",
     "capacitance",
@@ -43,6 +45,11 @@ class SettingsUpdate(BaseModel):
 class UploadResult(BaseModel):
     rows: int
     components: int
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    schema_: dict[str, Any] = Field(default_factory=dict, alias="schema")
+    detected_format: str | None = None
+    selected_file: str | None = None
+    analysis: dict[str, Any] | None = None
     warnings: list[str]
     errors: list[str]
     preview: list[dict[str, Any]]

@@ -1,12 +1,14 @@
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
 
 from app.database.session import get_db
 from app.ml.pipeline import run_analysis, tick_live_readings
-from app.models.db_models import Alert, AnomalyResult, Batch, Component, ModelRun, Prediction, Report
+from app.models.db_models import Alert, AnomalyResult, Batch, Component, DatasetSnapshot, ModelRun, Prediction, Report
 from app.models.schemas import PredictRequest, SettingsUpdate
+from app.services.generic_analysis import analyze_generic
 from app.services.risk_engine import recommendation
 from app.services.analytics import analytics_payload, dashboard_payload, distribution_and_drift
 from app.services.reports import build_report
@@ -144,6 +146,8 @@ def component_detail(component_id: str, db: Session = Depends(get_db)):
                 "temperature": m.temperature,
                 "voltage": m.voltage,
                 "current": m.current,
+                "pressure": m.pressure,
+                "vibration": m.vibration,
                 "leakage_current": m.leakage_current,
                 "propagation_delay": m.propagation_delay,
                 "resistance": m.resistance,
@@ -218,6 +222,15 @@ def batches(db: Session = Depends(get_db)):
 
 @router.post("/analyze")
 def analyze(db: Session = Depends(get_db)):
+    snapshot = db.query(DatasetSnapshot).order_by(DatasetSnapshot.created_at.desc()).first()
+    if snapshot and not db.query(Component).count():
+        result = analyze_generic(
+            json.loads(snapshot.rows_json),
+            {"mapping": json.loads(snapshot.mapping_json), "numeric_columns": json.loads(snapshot.metadata_json).get("numeric_columns", [])},
+        )
+        snapshot.analysis_json = json.dumps(result)
+        db.commit()
+        return result
     return run_analysis(db)
 
 
@@ -252,6 +265,8 @@ def burn_in(live: bool = Query(default=False), db: Session = Depends(get_db)):
                 **_summary(c),
                 "temperature": last.temperature if last else None,
                 "voltage": last.voltage if last else None,
+                "pressure": last.pressure if last else None,
+                "vibration": last.vibration if last else None,
                 "leakage_current": last.leakage_current if last else None,
             }
         )
@@ -291,10 +306,28 @@ def update_settings(body: SettingsUpdate, db: Session = Depends(get_db)):
 @router.post("/reports/{component_id}")
 def create_report(component_id: str, db: Session = Depends(get_db)):
     try:
+        component = db.query(Component).filter(Component.component_id == component_id).first()
+        if component is None:
+            raise ValueError(component_id)
+        if db.query(AnomalyResult).filter(AnomalyResult.component_pk == component.id).first() is None:
+            run_analysis(db)
         report = build_report(db, component_id)
     except ValueError:
         raise HTTPException(404, f"Component {component_id} not found.")
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
     return {"id": report.id, "payload": json.loads(report.payload)}
+
+
+@router.get("/reports/{report_id}/download")
+def download_report(report_id: int, db: Session = Depends(get_db)):
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report:
+        raise HTTPException(404, "Report not found.")
+    return JSONResponse(
+        content=json.loads(report.payload),
+        headers={"Content-Disposition": f'attachment; filename="aegis-report-{report_id}.json"'},
+    )
 
 
 @router.get("/reports/{report_id}")

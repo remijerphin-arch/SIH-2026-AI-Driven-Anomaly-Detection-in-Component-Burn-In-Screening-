@@ -34,6 +34,8 @@ def _rows_for_component(comp: Component) -> list[dict]:
                 "temperature": m.temperature,
                 "voltage": m.voltage,
                 "current": m.current,
+                "pressure": m.pressure,
+                "vibration": m.vibration,
                 "leakage_current": m.leakage_current,
                 "propagation_delay": m.propagation_delay,
                 "resistance": m.resistance,

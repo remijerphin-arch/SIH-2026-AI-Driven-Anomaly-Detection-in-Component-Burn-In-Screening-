@@ -28,8 +28,11 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     return (await res.json()) as T
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message === 'Failed to fetch') {
+      if (error.message === 'Failed to fetch' || error.message === 'NetworkError when attempting to fetch resource.') {
         throw new Error('Unable to connect to the detection service. Please check the backend status and try again.')
+      }
+      if (error.message === 'Bad Gateway' || error.message === 'Service Unavailable') {
+        throw new Error('The detection service is unavailable. Start the backend on port 8000 and try again.')
       }
       throw error
     }
@@ -68,8 +71,11 @@ export const endpoints = {
     fd.append('file', file)
     return api<UploadResult>('/api/upload', { method: 'POST', body: fd })
   },
+  demo: (dataset = 'FD001') => api<UploadResult>(`/api/demo?dataset=${encodeURIComponent(dataset)}`, { method: 'POST' }),
+  clearDataset: () => api<{ cleared: boolean }>('/api/dataset', { method: 'DELETE' }),
   createReport: (id: string) => api<{ id: number; payload: ReportPayload }>(`/api/reports/${id}`, { method: 'POST' }),
   getReport: (id: number) => api<{ id: number; payload: ReportPayload }>(`/api/reports/${id}`),
+  downloadReportUrl: (id: number) => `${BASE}/api/reports/${id}/download`,
   reports: () => api<{ items: { id: number; component_id: string; created_at: string }[] }>('/api/reports'),
   export: () => api<{ items: ComponentSummary[] }>('/api/export'),
 }
@@ -120,6 +126,8 @@ export type Measurement = {
   temperature: number
   voltage: number
   current: number
+  pressure: number
+  vibration: number
   leakage_current: number
   propagation_delay: number
   resistance: number
@@ -180,6 +188,8 @@ export type Dashboard = {
 export type BurnInItem = ComponentSummary & {
   temperature: number | null
   voltage: number | null
+  pressure: number | null
+  vibration: number | null
   leakage_current: number | null
 }
 
@@ -210,10 +220,22 @@ export type AppSettings = Record<string, unknown> & {
 export type UploadResult = {
   rows: number
   components: number
+  detected_format?: string
+  selected_file?: string
   warnings: string[]
   errors: string[]
   preview: Record<string, unknown>[]
   analysis: Record<string, unknown> | null
+  metadata: Record<string, unknown>
+  schema: {
+    schema: string
+    label: string
+    mapping: Record<string, string>
+    numeric_columns: string[]
+    categorical_columns: string[]
+    time_columns: string[]
+    group_columns: string[]
+  }
 }
 
 export type ReportPayload = {

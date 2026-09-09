@@ -28,11 +28,14 @@ export function ReportsPage() {
   }, [])
 
   async function create() {
-    if (!id) return
+    if (!id) {
+      toast.error('No analyzed component is available. Upload and analyze a dataset first.')
+      return
+    }
     setBusy(true)
     try {
       const r = await endpoints.createReport(id)
-      toast.success('Report stored.')
+      toast.success('Engineering report generated.')
       nav(`/reports/${r.id}`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed')

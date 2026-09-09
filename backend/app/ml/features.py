@@ -11,6 +11,8 @@ PARAMETERS = [
     "voltage",
     "current",
     "temperature",
+    "pressure",
+    "vibration",
     "propagation_delay",
     "resistance",
     "capacitance",

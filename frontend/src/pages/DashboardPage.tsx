@@ -207,7 +207,7 @@ export function DashboardPage() {
           <CardTitle>Recent Alerts</CardTitle>
         </CardHeader>
         <CardBody className="divide-y divide-line p-0">
-          {data.alerts.length === 0 && <p className="p-4 text-muted text-sm">No alerts yet. Run the live demo.</p>}
+          {data.alerts.length === 0 && <p className="p-4 text-muted text-sm">No alerts have been generated for the loaded dataset.</p>}
           {data.alerts.map((a) => (
             <Link
               key={a.id}

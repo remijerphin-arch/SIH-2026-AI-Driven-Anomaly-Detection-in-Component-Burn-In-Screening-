@@ -30,9 +30,11 @@ def build_report(db: Session, component_id: str) -> Report:
         .order_by(Prediction.created_at.desc())
         .first()
     )
+    if ar is None:
+        raise RuntimeError("Run analysis before generating a report for this component.")
     payload = {
         "title": "Component Screening Report",
-        "data_label": "UPLOADED DATA",
+        "data_label": "DEMO DATASET — NASA C-MAPSS" if c.data_source == "demo" else "UPLOADED DATA",
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "sih": "SIH26170",
         "disclaimer": "SIH prototype. Not an official ISRO operational system. Simulated or uploaded data only.",
@@ -57,6 +59,9 @@ def build_report(db: Session, component_id: str) -> Report:
                 "temperature": m.temperature,
                 "voltage": m.voltage,
                 "current": m.current,
+                "pressure": m.pressure,
+                "vibration": m.vibration,
+                "vibration": m.vibration,
                 "propagation_delay": m.propagation_delay,
             }
             for m in sorted(c.measurements, key=lambda x: x.test_hour)

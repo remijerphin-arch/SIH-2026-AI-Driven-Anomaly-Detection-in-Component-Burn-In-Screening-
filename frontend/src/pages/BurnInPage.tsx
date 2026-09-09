@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { startTransition, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardBody } from '@/components/ui/Card'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -11,26 +11,25 @@ const CHECKS = [0, 24, 96, 168]
 export function BurnInPage() {
   const [items, setItems] = useState<BurnInItem[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [live] = useState(false)
 
-  async function load(tick: boolean) {
-    try {
-      const res = await endpoints.burnIn(tick)
-      setItems(res.items)
-      setErr(null)
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Failed to load burn-in')
+  useEffect(() => {
+    let active = true
+    endpoints.burnIn(false)
+      .then((res) => {
+        if (!active) return
+        startTransition(() => {
+          setItems(res.items)
+          setErr(null)
+        })
+      })
+      .catch((e: unknown) => {
+        if (!active) return
+        setErr(e instanceof Error ? e.message : 'Failed to load burn-in')
+      })
+    return () => {
+      active = false
     }
-  }
-
-  useEffect(() => {
-    void load(false)
   }, [])
-
-  useEffect(() => {
-    if (!live) return
-    return undefined
-  }, [live])
 
   if (err) return <ErrorNote message={err} />
   if (!items) return <Loading label="Loading chambers…" />

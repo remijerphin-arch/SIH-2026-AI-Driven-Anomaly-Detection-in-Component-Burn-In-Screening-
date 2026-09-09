@@ -26,7 +26,7 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --app-dir . --reload --host 127.0.0.1 --port 8000
 ```
 
 On first start the API creates the database schema and waits for an uploaded dataset.
@@ -45,10 +45,32 @@ Open [http://localhost:5173](http://localhost:5173). The Vite dev server proxies
 
 ### 3. Analysis workflow
 
-1. Upload a CSV, XLSX, XLS, or JSON dataset from **Data intake**.
-2. Preview and validate the dataset, then ingest it and run analysis.
-3. Review calculated anomaly scores, trends, alerts, and explanations.
-4. Generate a print-friendly engineering report from the analyzed records.
+1. Start with the empty **No dataset loaded** state.
+2. Upload a CSV, XLSX, XLS, JSON, TXT, or ZIP dataset from **Data intake**, or choose **Load Demo Dataset** to use the real local `Dataset/train_FD001.txt` benchmark file.
+3. Review validation, detected schema, quality metadata, and preview data, then click **Run Analysis**.
+4. Review calculated anomaly scores, trends, alerts, analytics, and explanations.
+5. Generate a print-friendly engineering report, or use **Clear Dataset** to return to the empty state.
+
+Reports generate analysis automatically when a selected component has not been analyzed yet. The report view includes the selected component's measured history, model layer scores, explanations, prediction context, and recommendation. Use **Download report** for the actual JSON report payload or **Print / Save PDF** for a browser-generated PDF.
+
+The demo is never loaded automatically. C-MAPSS whitespace-separated files are detected without conversion and mapped from their real source columns into the screening schema. User datasets are classified as component screening, C-MAPSS, time series, generic engineering, or tabular engineering. Component screening uses its required fields; generic datasets use detected numeric, group, and time fields and do not need component-only columns. Missing values are reported and are only median-imputed on a separate copy for generic model processing; original rows are preserved.
+
+## Verified workflows
+
+- Empty startup and `CLEAR DATASET` return `NO DATASET LOADED` with no stored results.
+- Component/C-MAPSS uploads use the existing relational pipeline and replace the active dataset only after parsing succeeds.
+- Generic datasets are stored as `DatasetSnapshot` records with source rows, schema mapping, metadata, quality counts, and deterministic Isolation Forest findings.
+- C-MAPSS demo selection supports `FD001` through `FD004`; the UI defaults to `FD001`.
+- Reports are persisted and downloadable from `/api/reports/{id}/download`.
+- No original engineering values are generated or overwritten.
+
+## Schema detection and metadata
+
+`backend/app/services/schema_detection.py` detects aliases such as `asset_id`, `unit_id`, `component_id`, `timestamp`, `cycle`, `temp_c`, and `voltage_v`. It returns the detected classification, source-column mapping, numeric/categorical/time/group columns, row and column counts, group count, missing values, duplicate rows, and time bounds. The upload response uses that same parsed dataframe for both metadata and preview, preventing mismatched counts.
+
+## Analysis methods
+
+Component screening uses specification, lot-relative robust z-score, temporal trend, Isolation Forest, and Random Forest leakage prediction. Generic datasets use a RobustScaler and seeded Isolation Forest over detected numeric fields; median imputation exists only in the preprocessing matrix. Scores, severities, baselines, and explanations are derived from those outputs. The system does not use an LLM to create measurements, scores, identifiers, timestamps, or causes.
 
 ## Architecture
 
@@ -91,18 +113,21 @@ Default bands (Settings): 0–30 SAFE · 31–60 WARNING · 61–80 ANOMALY · 8
 | POST | `/analyze` | Fit models + score fleet |
 | POST | `/predict` | 168h prediction for a unit |
 | POST | `/upload/preview` | Validate uploaded dataset |
-| POST | `/upload` | Ingest dataset + analyze |
+| POST | `/upload` | Parse, validate, and ingest dataset |
+| POST | `/demo?dataset=FD001` | Load and analyze a real local C-MAPSS demo dataset (`FD001`–`FD004`) |
+| DELETE | `/dataset` | Clear active dataset, analysis results, and reports |
 | GET | `/analytics` | Fleet stats + correlation |
 | GET | `/burn-in` | In-progress units (`?live=true` ticks readings) |
 | GET/PUT | `/settings` | Limits and thresholds |
 | POST/GET | `/reports/{id}` | Screening reports |
+| GET | `/reports/{id}/download` | Download the persisted report payload |
 | GET | `/export` | JSON export of scores |
 
 ## Configuration
 
 Copy `backend/.env.example` to `backend/.env`. Do not commit secrets. SQLite is the default; point `DATABASE_URL` at PostgreSQL when you are ready.
 
-CSV uploads are size-limited (`MAX_CSV_BYTES`) and must include `component_id`, `batch_id`, and `test_hour`. Missing numeric columns are filled with documented defaults and surfaced as warnings — they are not silently ignored when a required column is absent.
+Uploads are size-limited (`MAX_CSV_BYTES`) and must include `component_id`, `batch_id`, `test_hour`, `component_type`, `temperature`, `voltage`, `current`, `pressure`, `vibration`, `resistance`, `leakage_current`, `propagation_delay`, and `capacitance`. Missing or invalid required fields fail validation; no engineering values are invented.
 
 ## Project layout
 

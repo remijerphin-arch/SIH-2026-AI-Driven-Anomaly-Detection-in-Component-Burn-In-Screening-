@@ -84,6 +84,16 @@ export function AnalyticsPage() {
       </div>
       <Card>
         <CardHeader>
+          <CardTitle>Detection methodology</CardTitle>
+        </CardHeader>
+        <CardBody className="grid md:grid-cols-3 gap-4 text-sm">
+          <Method title="Baseline" body="Latest readings are compared with lot-level medians and robust deviations calculated from the loaded dataset." />
+          <Method title="Model" body="Isolation Forest scores multivariate feature vectors built from raw values, robust z-scores, slopes, and acceleration." />
+          <Method title="Interpretation" body="Risk bands are derived from measured specification proximity, drift, model score, and projected limit proximity. They are screening indicators, not failure claims." />
+        </CardBody>
+      </Card>
+      <Card>
+        <CardHeader>
           <CardTitle>Parameter correlation (latest readings)</CardTitle>
         </CardHeader>
         <CardBody>
@@ -129,6 +139,10 @@ export function AnalyticsPage() {
       </Card>
     </div>
   )
+}
+
+function Method({ title, body }: { title: string; body: string }) {
+  return <div className="border border-line p-3"><div className="section-kicker mb-2">{title}</div><p className="text-fog leading-6">{body}</p></div>
 }
 
 function Kpi({ label, value }: { label: string; value: string }) {

@@ -43,6 +43,7 @@ export function ReportViewPage() {
         <Button variant="outline" onClick={() => window.print()}>
           Print / Save PDF
         </Button>
+        {id && <a className="inline-flex items-center justify-center rounded-md border border-line bg-transparent px-3.5 py-2 text-sm font-medium text-snow hover:border-cyan-300" href={endpoints.downloadReportUrl(Number(id))} download>Download report</a>}
       </div>
       <header>
         <p className="text-xs tracking-[0.25em] text-muted">SIH 26170 · AEGIS</p>
@@ -72,9 +73,9 @@ export function ReportViewPage() {
         <h2 className="text-sm text-snow mb-2">Leakage history</h2>
         <ResponsiveContainer>
           <LineChart data={payload.history}>
-            <CartesianGrid stroke="#243049" />
-            <XAxis dataKey="test_hour" stroke="#8fa0b8" fontSize={11} />
-            <YAxis stroke="#8fa0b8" fontSize={11} />
+            <CartesianGrid stroke="var(--report-grid)" />
+            <XAxis dataKey="test_hour" stroke="var(--text-muted)" fontSize={11} />
+            <YAxis stroke="var(--text-muted)" fontSize={11} />
             <Tooltip contentStyle={chartTip} />
             <Line type="monotone" dataKey="leakage_current" stroke="#5ec8f0" />
           </LineChart>
