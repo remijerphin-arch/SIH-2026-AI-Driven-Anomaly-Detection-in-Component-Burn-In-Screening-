@@ -9,6 +9,8 @@ backend/data/*.db-shm
 backend/data/*.db-wal
 .pytest_cache/
 Dataset/
+!Dataset/
+!Dataset/train_FD001.txt
 /data/
 
 # Node
