@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Activity,
   AlertTriangle,
+  ArrowLeft,
   BarChart3,
   ChevronLeft,
   ChevronRight,
@@ -104,6 +105,16 @@ export function AppLayout() {
           <div className="topbar-left">
             <button type="button" className="sidebar-toggle mobile-only" onClick={() => setOpen(true)} aria-label="Open navigation">
               <Menu size={16} />
+            </button>
+            <button
+              type="button"
+              className="sidebar-toggle"
+              onClick={() => nav(-1)}
+              aria-label="Go back"
+              title="Go back"
+              disabled={loc.pathname === '/dashboard' || loc.pathname === '/'}
+            >
+              <ArrowLeft size={16} />
             </button>
             <Gauge size={14} className="status-icon" />
             <div className="eyebrow hidden-sm">Mission console</div>
