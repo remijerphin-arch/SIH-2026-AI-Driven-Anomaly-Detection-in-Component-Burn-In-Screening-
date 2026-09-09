@@ -43,6 +43,24 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173). The Vite dev server proxies `/api` to port 8000.
 
+### Deploy frontend to Vercel and API to Render
+
+Deploy the `frontend` directory as the Vercel project root. In Vercel project settings, set:
+
+```text
+VITE_API_URL=https://<your-render-service>.onrender.com
+```
+
+Do not include a trailing slash. Redeploy Vercel after changing this variable because Vite embeds it during the frontend build. The checked-in `frontend/vercel.json` keeps React Router routes working after refresh.
+
+For Render, either use the checked-in `render.yaml` or configure the service with root directory `backend`, build command `pip install -r requirements.txt`, and start command `python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Set:
+
+```text
+CORS_ORIGINS=https://<your-vercel-domain>,https://<your-vercel-project>.vercel.app
+```
+
+The API also permits Vercel preview origins matching `https://*.vercel.app`. Verify deployment before uploading by opening `https://<your-render-service>.onrender.com/api/health`; it must return JSON with `ok: true`.
+
 ### 3. Analysis workflow
 
 1. Start with the empty **No dataset loaded** state.

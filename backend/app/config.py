@@ -7,6 +7,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/aegis.db"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origin_regex: str = r"https://.*\.vercel\.app"
     max_csv_bytes: int = 64 * 1024 * 1024
     app_name: str = "AEGIS Reliability Platform"
 
