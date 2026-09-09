@@ -4,7 +4,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/StatusBadge'
 import { ErrorNote, Loading } from '@/components/EmptyState'
-import { endpoints, type ComponentDetail, type ComponentSummary } from '@/lib/api'
+import { endpoints, type ComponentDetail, type ComponentSummary, type DatasetSummary } from '@/lib/api'
 import { fmt } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -34,14 +34,15 @@ export function AnomalyPage() {
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [ready, setReady] = useState(false)
+  const [dataset, setDataset] = useState<DatasetSummary | null>(null)
 
   useEffect(() => {
-    endpoints
-      .components()
-      .then((r) => {
+    Promise.all([endpoints.components(), endpoints.currentDataset()])
+      .then(([r, d]) => {
         const ranked = [...r.items].sort((a, b) => b.risk_score - a.risk_score)
         setItems(ranked)
         setId(ranked[0]?.component_id ?? '')
+        setDataset(d)
       })
       .catch((e: Error) => setErr(e.message))
       .finally(() => setReady(true))
@@ -72,7 +73,7 @@ export function AnomalyPage() {
 
   if (err) return <ErrorNote message={err} />
   if (!ready) return <Loading />
-  if (!items.length) return <p className="text-muted text-sm">No analyzed components. Upload a dataset to begin screening.</p>
+  if (!items.length) return <Card><CardBody className="space-y-2"><h1 className="text-xl text-snow">Dataset anomaly analysis</h1><p className="text-sm text-fog">{dataset?.loaded ? `${dataset.filename} is loaded as ${dataset.schema}.` : 'No dataset loaded.'}</p><p className="text-sm text-muted">{dataset?.analysis?.anomalies != null ? `${String(dataset.analysis.anomalies)} anomalies detected from ${String(dataset.analysis.analyzed)} analyzed records.` : 'Run analysis from Data Intake to generate findings.'}</p></CardBody></Card>
 
   const L = detail?.layers
 

@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { EmptyState, ErrorNote, Loading } from '@/components/EmptyState'
-import { endpoints, type ComponentSummary } from '@/lib/api'
+import { endpoints, type ComponentSummary, type DatasetSummary } from '@/lib/api'
 
 export function ReportsPage() {
   const nav = useNavigate()
@@ -14,14 +14,16 @@ export function ReportsPage() {
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [ready, setReady] = useState(false)
+  const [dataset, setDataset] = useState<DatasetSummary | null>(null)
 
   useEffect(() => {
-    Promise.all([endpoints.components(), endpoints.reports()])
-      .then(([c, r]) => {
+    Promise.all([endpoints.components(), endpoints.reports(), endpoints.currentDataset()])
+      .then(([c, r, d]) => {
         const flagged = [...c.items].sort((a, b) => b.risk_score - a.risk_score)
         setItems(flagged)
         setId(flagged[0]?.component_id ?? '')
         setReports(r.items)
+        setDataset(d)
       })
       .catch((e: Error) => setErr(e.message))
       .finally(() => setReady(true))
@@ -47,7 +49,7 @@ export function ReportsPage() {
   if (err) return <ErrorNote message={err} />
   if (!ready) return <Loading />
 
-  if (items.length === 0 && reports.length === 0) {
+  if (items.length === 0 && reports.length === 0 && !dataset?.loaded) {
     return (
       <div className="empty-analytics-shell">
         <div className="empty-analytics-panel">
@@ -66,6 +68,15 @@ export function ReportsPage() {
         <h1 className="text-2xl text-snow font-medium">Screening reports</h1>
         <p className="text-sm text-muted mt-1">Print-friendly HTML reports (use the browser print dialog for PDF).</p>
       </div>
+      {dataset?.loaded && items.length === 0 && (
+        <Card>
+          <CardHeader><CardTitle>Dataset engineering report</CardTitle></CardHeader>
+          <CardBody className="space-y-3 text-sm text-fog">
+            <p>{dataset.filename} · {dataset.schema} · {String(dataset.metadata?.rows ?? 0)} records</p>
+            <a className="inline-flex rounded-md border border-line px-3.5 py-2 text-snow hover:border-cyan-300" href={endpoints.downloadDatasetReportUrl()} download>Download report</a>
+          </CardBody>
+        </Card>
+      )}
       {items.length === 0 ? (
         <EmptyState title="No components to report." />
       ) : (

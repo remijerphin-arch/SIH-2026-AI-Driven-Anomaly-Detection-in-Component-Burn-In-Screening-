@@ -14,7 +14,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/StatusBadge'
 import { ErrorNote, Loading } from '@/components/EmptyState'
-import { endpoints, type ComponentDetail, type ComponentSummary } from '@/lib/api'
+import { endpoints, type ComponentDetail, type ComponentSummary, type DatasetSummary } from '@/lib/api'
 import { chartTip } from '@/lib/params'
 import { fmt } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -26,14 +26,15 @@ export function PredictionPage() {
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [ready, setReady] = useState(false)
+  const [dataset, setDataset] = useState<DatasetSummary | null>(null)
 
   useEffect(() => {
-    endpoints
-      .components()
-      .then((r) => {
+    Promise.all([endpoints.components(), endpoints.currentDataset()])
+      .then(([r, d]) => {
         const ranked = [...r.items].sort((a, b) => (b.predicted_168h ?? 0) - (a.predicted_168h ?? 0))
         setItems(ranked)
         setId(ranked[0]?.component_id ?? '')
+        setDataset(d)
       })
       .catch((e: Error) => setErr(e.message))
       .finally(() => setReady(true))
@@ -77,7 +78,7 @@ export function PredictionPage() {
 
   if (err) return <ErrorNote message={err} />
   if (!ready) return <Loading />
-  if (!items.length) return <p className="text-muted text-sm">No analyzed components. Upload a dataset to generate predictions.</p>
+  if (!items.length) return <Card><CardBody><h1 className="text-xl text-snow">Prediction analysis</h1><p className="text-sm text-fog mt-2">{dataset?.loaded ? `${dataset.filename} is loaded as ${dataset.schema}.` : 'No dataset loaded.'}</p><p className="text-sm text-muted mt-2">Component 168-hour predictions require a component parameter with a valid time series. The available generic anomaly findings remain available in Analytics.</p></CardBody></Card>
 
   const p = detail?.prediction
   const lastLeak = detail?.measurements.at(-1)?.leakage_current

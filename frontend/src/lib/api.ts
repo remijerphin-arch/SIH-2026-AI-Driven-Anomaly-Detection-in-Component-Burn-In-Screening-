@@ -41,6 +41,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const endpoints = {
+  currentDataset: () => api<DatasetSummary>('/api/dataset/current'),
   health: () => api<{ ok: boolean }>('/api/health'),
   dashboard: () => api<Dashboard>('/api/dashboard'),
   components: (params: Record<string, string> = {}) => {
@@ -76,6 +77,7 @@ export const endpoints = {
   createReport: (id: string) => api<{ id: number; payload: ReportPayload }>(`/api/reports/${id}`, { method: 'POST' }),
   getReport: (id: number) => api<{ id: number; payload: ReportPayload }>(`/api/reports/${id}`),
   downloadReportUrl: (id: number) => `${BASE}/api/reports/${id}/download`,
+  downloadDatasetReportUrl: () => `${BASE}/api/dataset/report/download`,
   reports: () => api<{ items: { id: number; component_id: string; created_at: string }[] }>('/api/reports'),
   export: () => api<{ items: ComponentSummary[] }>('/api/export'),
 }
@@ -195,6 +197,9 @@ export type BurnInItem = ComponentSummary & {
 
 export type AnalyticsPayload = {
   empty: boolean
+  generic?: boolean
+  dataset?: { filename: string; schema: string }
+  findings?: { identifier: string | null; time: string | number | null; parameter: string; observed: unknown; baseline: unknown; anomaly_score: number; severity: string; reason: string }[]
   kpis?: Record<string, string | number | null>
   anomalies_by_batch?: { batch_id: string; anomalies: number; total: number; rate: number; avg_drift: number }[]
   anomalies_by_parameter?: { parameter: string; near_limit_count: number }[]
@@ -236,6 +241,16 @@ export type UploadResult = {
     time_columns: string[]
     group_columns: string[]
   }
+}
+
+export type DatasetSummary = {
+  loaded: boolean
+  filename?: string
+  format?: string
+  schema?: string
+  mapping?: Record<string, string>
+  metadata?: Record<string, unknown>
+  analysis?: Record<string, unknown>
 }
 
 export type ReportPayload = {

@@ -26,6 +26,19 @@ export function AnalyticsPage() {
   if (!data) return <Loading />
   if (data.empty) return <EmptyState title="No analysis available." hint="Upload and analyze a dataset to view telemetry trends and fleet statistics." />
 
+  if (data.generic) {
+    const k = data.kpis ?? {}
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl text-snow font-medium">Analytics</h1><p className="text-sm text-muted mt-1">{data.dataset?.filename} · {data.dataset?.schema}</p></div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Kpi label="Records analyzed" value={String(k.records ?? 0)} /><Kpi label="Groups detected" value={String(k.groups ?? 'Not detected')} /><Kpi label="Numeric features" value={String(k.numeric_features ?? 0)} /><Kpi label="Anomalies" value={`${String(k.anomalies ?? 0)} (${String(k.anomaly_percentage ?? 0)}%)`} />
+        </div>
+        <Card><CardHeader><CardTitle>Detected anomaly findings</CardTitle></CardHeader><CardBody className="space-y-3">{!data.findings?.length && <p className="text-muted text-sm">No anomalies detected.</p>}{data.findings?.map((f, index) => <div key={`${f.parameter}-${index}`} className="border-b border-line pb-3 text-sm"><div className="flex justify-between gap-3"><span className="text-snow">{f.identifier ?? 'Row'} · {f.parameter}</span><span className="text-amber-200">{f.severity} · {f.anomaly_score}/100</span></div><p className="text-fog mt-1">{f.reason}</p><p className="text-muted text-xs mt-1">Observed {String(f.observed)} · baseline {String(f.baseline)} · time {String(f.time ?? 'n/a')}</p></div>)}</CardBody></Card>
+      </div>
+    )
+  }
+
   const k = data.kpis ?? {}
 
   return (

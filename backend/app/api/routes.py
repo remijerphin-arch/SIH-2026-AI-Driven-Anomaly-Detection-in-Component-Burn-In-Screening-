@@ -40,6 +40,14 @@ def _summary(c: Component) -> dict:
 @router.get("/dashboard")
 def dashboard(db: Session = Depends(get_db)):
     base = dashboard_payload(db)
+    snapshot = db.query(DatasetSnapshot).order_by(DatasetSnapshot.created_at.desc()).first()
+    if snapshot and base["totals"]["tested"] == 0:
+        metadata = json.loads(snapshot.metadata_json)
+        analysis = json.loads(snapshot.analysis_json or "{}")
+        base["data_label"] = json.loads(snapshot.mapping_json or "{}").get("label", snapshot.schema_name)
+        base["totals"]["tested"] = metadata.get("rows", 0)
+        base["totals"]["anomaly"] = analysis.get("anomalies", 0)
+        base["totals"]["average_anomaly_score"] = analysis.get("highest_anomaly_score", 0)
     charts = distribution_and_drift(db)
     alerts = (
         db.query(Alert)
@@ -62,6 +70,22 @@ def dashboard(db: Session = Depends(get_db)):
             }
             for a in alerts
         ],
+    }
+
+
+@router.get("/dataset/current")
+def current_dataset(db: Session = Depends(get_db)):
+    snapshot = db.query(DatasetSnapshot).order_by(DatasetSnapshot.created_at.desc()).first()
+    if not snapshot:
+        return {"loaded": False}
+    return {
+        "loaded": True,
+        "filename": snapshot.filename,
+        "format": snapshot.detected_format,
+        "schema": snapshot.schema_name,
+        "mapping": json.loads(snapshot.mapping_json or "{}"),
+        "metadata": json.loads(snapshot.metadata_json or "{}"),
+        "analysis": json.loads(snapshot.analysis_json or "{}"),
     }
 
 
@@ -246,6 +270,23 @@ def predict(body: PredictRequest, db: Session = Depends(get_db)):
 
 @router.get("/analytics")
 def analytics(db: Session = Depends(get_db)):
+    snapshot = db.query(DatasetSnapshot).order_by(DatasetSnapshot.created_at.desc()).first()
+    if snapshot and not db.query(Component).count():
+        metadata = json.loads(snapshot.metadata_json or "{}")
+        analysis = json.loads(snapshot.analysis_json or "{}")
+        return {
+            "empty": False,
+            "generic": True,
+            "dataset": {"filename": snapshot.filename, "schema": snapshot.schema_name},
+            "kpis": {
+                "records": metadata.get("rows", 0),
+                "groups": metadata.get("groups"),
+                "numeric_features": metadata.get("numeric_features", 0),
+                "anomalies": analysis.get("anomalies", 0),
+                "anomaly_percentage": analysis.get("anomaly_percentage", 0),
+            },
+            "findings": analysis.get("findings", []),
+        }
     return analytics_payload(db)
 
 
@@ -328,6 +369,22 @@ def download_report(report_id: int, db: Session = Depends(get_db)):
         content=json.loads(report.payload),
         headers={"Content-Disposition": f'attachment; filename="aegis-report-{report_id}.json"'},
     )
+
+
+@router.get("/dataset/report/download")
+def download_dataset_report(db: Session = Depends(get_db)):
+    snapshot = db.query(DatasetSnapshot).order_by(DatasetSnapshot.created_at.desc()).first()
+    if not snapshot:
+        raise HTTPException(404, "No dataset is loaded.")
+    payload = {
+        "title": "AEGIS Engineering Dataset Report",
+        "dataset": {"filename": snapshot.filename, "format": snapshot.detected_format, "schema": snapshot.schema_name},
+        "metadata": json.loads(snapshot.metadata_json or "{}"),
+        "schema_mapping": json.loads(snapshot.mapping_json or "{}"),
+        "analysis": json.loads(snapshot.analysis_json or "{}"),
+        "limitations": "Generic dataset findings are screening indicators and require engineering review.",
+    }
+    return JSONResponse(content=payload, headers={"Content-Disposition": 'attachment; filename="aegis-dataset-report.json"'})
 
 
 @router.get("/reports/{report_id}")

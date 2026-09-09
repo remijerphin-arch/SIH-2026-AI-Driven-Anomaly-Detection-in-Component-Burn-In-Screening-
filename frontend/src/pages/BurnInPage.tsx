@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Card, CardBody } from '@/components/ui/Card'
 import { StatusBadge } from '@/components/StatusBadge'
 import { EmptyState, ErrorNote, Loading } from '@/components/EmptyState'
-import { endpoints, type BurnInItem } from '@/lib/api'
+import { endpoints, type BurnInItem, type DatasetSummary } from '@/lib/api'
 import { fmt } from '@/lib/utils'
 
 const CHECKS = [0, 24, 96, 168]
@@ -11,15 +11,17 @@ const CHECKS = [0, 24, 96, 168]
 export function BurnInPage() {
   const [items, setItems] = useState<BurnInItem[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [dataset, setDataset] = useState<DatasetSummary | null>(null)
 
   useEffect(() => {
     let active = true
-    endpoints.burnIn(false)
-      .then((res) => {
+    Promise.all([endpoints.burnIn(false), endpoints.currentDataset()])
+      .then(([res, d]) => {
         if (!active) return
         startTransition(() => {
           setItems(res.items)
           setErr(null)
+          setDataset(d)
         })
       })
       .catch((e: unknown) => {
@@ -45,7 +47,7 @@ export function BurnInPage() {
         </div>
       </div>
       {items.length === 0 ? (
-        <EmptyState title="No in-progress burn-in units." hint="Upload a dataset containing partial burn-in traces to monitor test progression." />
+        <EmptyState title={dataset?.loaded ? 'No component burn-in series detected.' : 'No dataset loaded.'} hint={dataset?.loaded ? `Loaded ${dataset.filename} as ${dataset.schema}. Burn-in monitoring requires component/unit time-series records.` : 'Upload a dataset to monitor test progression.'} />
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
           {items.map((c) => (

@@ -105,6 +105,7 @@ Default bands (Settings): 0–30 SAFE · 31–60 WARNING · 61–80 ANOMALY · 8
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/health` | Liveness |
+| GET | `/dataset/current` | Current persisted dataset schema, metadata, and analysis |
 | GET | `/dashboard` | KPIs, charts, alerts |
 | GET | `/components` | Filterable inventory |
 | GET | `/components/{id}` | Detail + explanations |
@@ -121,6 +122,7 @@ Default bands (Settings): 0–30 SAFE · 31–60 WARNING · 61–80 ANOMALY · 8
 | GET/PUT | `/settings` | Limits and thresholds |
 | POST/GET | `/reports/{id}` | Screening reports |
 | GET | `/reports/{id}/download` | Download the persisted report payload |
+| GET | `/dataset/report/download` | Download a report for a generic dataset |
 | GET | `/export` | JSON export of scores |
 
 ## Configuration
