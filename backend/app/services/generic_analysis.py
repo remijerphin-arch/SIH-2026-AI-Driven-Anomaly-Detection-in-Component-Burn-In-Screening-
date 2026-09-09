@@ -36,7 +36,7 @@ def analyze_generic(rows: list[dict[str, Any]], schema: dict[str, Any]) -> dict[
         findings.append({
             "row": int(index),
             "identifier": str(frame.iloc[index][group_column]) if group_column in frame.columns else None,
-            "time": frame.iloc[index][time_column] if time_column in frame.columns else None,
+            "time": _value(frame.iloc[index][time_column]) if time_column in frame.columns else None,
             "parameter": parameter,
             "observed": _value(frame.iloc[index][parameter]),
             "baseline": _value(medians[parameter]),
