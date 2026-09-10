@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '' : 'https://aegis-api.onrender.com')
+const API_BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '' : 'https://sih-2026-ai-driven-anomaly-detection-in.onrender.com')
 const BASE = API_BASE.replace(/\/$/, '')
 export const UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024
 
