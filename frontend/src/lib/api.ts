@@ -1,5 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '' : 'https://aegis-api.onrender.com')
 const BASE = API_BASE.replace(/\/$/, '')
+export const UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024
 
 async function parseError(res: Response): Promise<string> {
   try {
@@ -69,9 +70,19 @@ export const endpoints = {
     return api<UploadResult>('/api/upload/preview', { method: 'POST', body: fd })
   },
   upload: async (file: File) => {
-    const fd = new FormData()
-    fd.append('file', file)
-    return api<UploadResult>('/api/upload', { method: 'POST', body: fd })
+    if (file.size <= UPLOAD_CHUNK_BYTES) {
+      const fd = new FormData()
+      fd.append('file', file)
+      return api<UploadResult>('/api/upload', { method: 'POST', body: fd })
+    }
+    const uploadId = crypto.randomUUID()
+    const totalChunks = Math.ceil(file.size / UPLOAD_CHUNK_BYTES)
+    for (let index = 0; index < totalChunks; index += 1) {
+      const fd = new FormData()
+      fd.append('file', file.slice(index * UPLOAD_CHUNK_BYTES, (index + 1) * UPLOAD_CHUNK_BYTES))
+      await api(`/api/upload/chunk?upload_id=${uploadId}&chunk_index=${index}`, { method: 'POST', body: fd })
+    }
+    return api<UploadResult>(`/api/upload/complete?upload_id=${uploadId}&filename=${encodeURIComponent(file.name)}&total_chunks=${totalChunks}`, { method: 'POST' })
   },
   demo: (dataset = 'FD001') => api<UploadResult>(`/api/demo?dataset=${encodeURIComponent(dataset)}`, { method: 'POST' }),
   clearDataset: () => api<{ cleared: boolean }>('/api/dataset', { method: 'DELETE' }),

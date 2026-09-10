@@ -1,5 +1,8 @@
 from contextlib import asynccontextmanager
 import json
+import shutil
+import tempfile
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
@@ -20,6 +23,9 @@ from app.utils.errors import http_error_handler, unhandled_error_handler
 
 
 SUPPORTED_UPLOAD_SUFFIXES = (".csv", ".xlsx", ".xls", ".json", ".txt", ".zip")
+UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024
+UPLOAD_DIR = Path(tempfile.gettempdir()) / "aegis-uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _validate_upload_name(filename: str) -> None:
@@ -149,6 +155,43 @@ async def upload(file: UploadFile = File(...)):
     _validate_upload_name(file.filename)
     content = await file.read()
     return _ingest_content(file.filename, content, "upload", clear_before=True)
+
+
+@app.post("/api/upload/chunk")
+async def upload_chunk(
+    upload_id: str = Query(..., pattern=r"^[a-f0-9-]{36}$"),
+    chunk_index: int = Query(..., ge=0),
+    file: UploadFile = File(...),
+):
+    target = UPLOAD_DIR / f"{upload_id}.{chunk_index}.part"
+    with target.open("wb") as destination:
+        shutil.copyfileobj(file.file, destination, length=1024 * 1024)
+    return {"uploaded": True, "chunk_index": chunk_index}
+
+
+@app.post("/api/upload/complete")
+async def complete_upload(
+    upload_id: str = Query(..., pattern=r"^[a-f0-9-]{36}$"),
+    filename: str = Query(...),
+    total_chunks: int = Query(..., ge=1),
+):
+    _validate_upload_name(filename)
+    assembled = UPLOAD_DIR / f"{upload_id}.data"
+    try:
+        with assembled.open("wb") as destination:
+            for index in range(total_chunks):
+                part = UPLOAD_DIR / f"{upload_id}.{index}.part"
+                if not part.exists():
+                    raise HTTPException(400, f"Upload chunk {index + 1} is missing.")
+                with part.open("rb") as source:
+                    shutil.copyfileobj(source, destination, length=1024 * 1024)
+        if assembled.stat().st_size > settings.max_csv_bytes:
+            raise HTTPException(413, f"File exceeds maximum size of {settings.max_csv_bytes // (1024 * 1024)} MB.")
+        return _ingest_content(filename, assembled.read_bytes(), "upload", clear_before=True)
+    finally:
+        assembled.unlink(missing_ok=True)
+        for index in range(total_chunks):
+            (UPLOAD_DIR / f"{upload_id}.{index}.part").unlink(missing_ok=True)
 
 
 @app.post("/api/demo")
