@@ -2,10 +2,13 @@ services:
   - type: web
     name: aegis-api
     runtime: python
-    rootDir: backend
     buildCommand: pip install -r requirements.txt
+    rootDir: backend
     startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
       - key: DATABASE_URL
         value: sqlite:///./data/aegis.db
       - key: CORS_ORIGINS

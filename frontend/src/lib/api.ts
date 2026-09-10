@@ -1,4 +1,5 @@
-const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+const API_BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '' : 'https://aegis-api.onrender.com')
+const BASE = API_BASE.replace(/\/$/, '')
 
 async function parseError(res: Response): Promise<string> {
   try {
