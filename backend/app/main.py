@@ -13,7 +13,7 @@ from app.api.routes import router
 from app.ml.pipeline import run_analysis
 from app.services.ingest import ingest_csv_bytes, ingest_dataframe
 from app.services.csv_service import describe_uploaded_file, parse_uploaded_file
-from app.services.schema_detection import json_rows
+from app.services.schema_detection import detect_schema, json_rows, metadata
 from app.models.db_models import Alert, AnomalyResult, Batch, Component, DatasetSnapshot, Measurement, ModelRun, Prediction, Report
 from app.services.settings_service import get_settings_map
 from app.utils.errors import http_error_handler, unhandled_error_handler
@@ -41,12 +41,21 @@ def _migrate_measurement_schema() -> None:
 def _ingest_content(filename: str, content: bytes, source: str, clear_before: bool = False) -> dict:
     db = SessionLocal()
     try:
-        parsed = describe_uploaded_file(filename, content, settings.max_csv_bytes)
-        if parsed["errors"]:
+        raw_df, warnings, errors = parse_uploaded_file(filename, content, settings.max_csv_bytes)
+        detected = detect_schema(raw_df, filename) if not raw_df.empty else {"schema": "UNKNOWN", "label": "UNCLASSIFIED DATASET", "mapping": {}, "columns": [], "numeric_columns": [], "categorical_columns": [], "time_columns": [], "group_columns": []}
+        parsed = {
+            "rows": int(len(raw_df)),
+            "components": int(raw_df["component_id"].nunique()) if "component_id" in raw_df.columns else int(raw_df[detected["mapping"]["group"]].nunique()) if detected["mapping"].get("group") in raw_df.columns else 0,
+            "warnings": warnings,
+            "errors": errors,
+            "preview": json_rows(raw_df, 12),
+            "metadata": metadata(raw_df, detected) if not raw_df.empty else {},
+            "schema": detected,
+        }
+        if errors:
             return {**parsed, "analysis": None}
         if clear_before:
             _clear_dataset_records()
-        raw_df, _, _ = parse_uploaded_file(filename, content, settings.max_csv_bytes)
         detected_format = filename.rsplit(".", 1)[-1].lower() if "." in filename else "txt"
         snapshot = DatasetSnapshot(
             filename=filename,
@@ -54,7 +63,7 @@ def _ingest_content(filename: str, content: bytes, source: str, clear_before: bo
             schema_name=parsed["schema"]["schema"],
             mapping_json=json.dumps(parsed["schema"]["mapping"]),
             metadata_json=json.dumps(parsed["metadata"]),
-            rows_json=json.dumps(json_rows(raw_df)),
+            rows_json=json.dumps(json_rows(raw_df)) if parsed["schema"]["schema"] not in ("AEGIS_COMPONENT_SCREENING", "C-MAPSS") else "[]",
         )
         db.add(snapshot)
         if parsed["schema"]["schema"] in ("AEGIS_COMPONENT_SCREENING", "C-MAPSS"):

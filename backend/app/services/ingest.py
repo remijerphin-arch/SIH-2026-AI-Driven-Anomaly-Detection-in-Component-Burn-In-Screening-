@@ -11,53 +11,56 @@ from app.services.csv_service import parse_uploaded_file
 def ingest_dataframe(db: Session, df, source: str = "upload") -> int:
     batches = {b.batch_id: b for b in db.query(Batch).all()}
     comps = {c.component_id: c for c in db.query(Component).all()}
-    n = 0
-    for _, row in df.iterrows():
-        bid = str(row["batch_id"])
-        cid = str(row["component_id"])
-        if bid not in batches:
-            b = Batch(batch_id=bid, manufacturer=str(row.get("manufacturer", "Uploaded")), notes="Uploaded CSV")
-            db.add(b)
-            db.flush()
-            batches[bid] = b
-        if cid not in comps:
-            c = Component(
-                component_id=cid,
-                batch_pk=batches[bid].id,
-                component_type=str(row.get("component_type", "Unknown")),
-                manufacturer=str(row.get("manufacturer", "Uploaded")),
-                current_test_hour=int(row["test_hour"]),
-                data_source=source,
-                last_updated=datetime.utcnow(),
-            )
-            db.add(c)
-            db.flush()
-            comps[cid] = c
-        existing = (
-            db.query(Measurement)
-            .filter(Measurement.component_pk == comps[cid].id, Measurement.test_hour == int(row["test_hour"]))
-            .first()
+    batch_rows = df.assign(batch_id=df["batch_id"].astype(str)).drop_duplicates("batch_id")
+    for row in batch_rows.itertuples(index=False):
+        bid = str(row.batch_id)
+        if bid in batches:
+            continue
+        batch = Batch(batch_id=bid, manufacturer=str(getattr(row, "manufacturer", "Uploaded")), notes="Uploaded CSV")
+        db.add(batch)
+        db.flush()
+        batches[bid] = batch
+
+    component_rows = df.assign(component_id=df["component_id"].astype(str)).drop_duplicates("component_id")
+    for row in component_rows.itertuples(index=False):
+        cid = str(row.component_id)
+        if cid in comps:
+            continue
+        component = Component(
+            component_id=cid,
+            batch_pk=batches[str(row.batch_id)].id,
+            component_type=str(getattr(row, "component_type", "Unknown")),
+            manufacturer=str(getattr(row, "manufacturer", "Uploaded")),
+            current_test_hour=int(row.test_hour),
+            data_source=source,
+            last_updated=datetime.utcnow(),
         )
-        payload = dict(
-            temperature=float(row["temperature"]),
-            voltage=float(row["voltage"]),
-            current=float(row["current"]),
-            pressure=float(row["pressure"]),
-            vibration=float(row["vibration"]),
-            leakage_current=float(row["leakage_current"]),
-            propagation_delay=float(row["propagation_delay"]),
-            resistance=float(row["resistance"]),
-            capacitance=float(row["capacitance"]),
-        )
-        if existing:
-            for k, v in payload.items():
-                setattr(existing, k, v)
-        else:
-            db.add(Measurement(component_pk=comps[cid].id, test_hour=int(row["test_hour"]), **payload))
-        comps[cid].current_test_hour = max(comps[cid].current_test_hour, int(row["test_hour"]))
-        n += 1
+        db.add(component)
+        db.flush()
+        comps[cid] = component
+
+    measurements = []
+    for row in df.itertuples(index=False):
+        component = comps[str(row.component_id)]
+        test_hour = int(row.test_hour)
+        component.current_test_hour = max(component.current_test_hour, test_hour)
+        measurements.append({
+            "component_pk": component.id,
+            "test_hour": test_hour,
+            "temperature": float(row.temperature),
+            "voltage": float(row.voltage),
+            "current": float(row.current),
+            "pressure": float(row.pressure),
+            "vibration": float(row.vibration),
+            "leakage_current": float(row.leakage_current),
+            "propagation_delay": float(row.propagation_delay),
+            "resistance": float(row.resistance),
+            "capacitance": float(row.capacitance),
+        })
+    if measurements:
+        db.bulk_insert_mappings(Measurement, measurements)
     db.commit()
-    return n
+    return len(measurements)
 
 
 def ingest_csv_bytes(db: Session, content: bytes, max_bytes: int, filename: str = "dataset.csv"):
